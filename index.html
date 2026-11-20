@@ -57,11 +57,8 @@
 <div class="ui hint" id="hint"><span>Tap the coin</span></div>
 <button id="flipBtn">FLIP THE COIN</button>
 
-<script type="importmap">
-{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
-</script>
 <script type="module">
-import * as THREE from 'three';
+import * as THREE from './three.module.min.js';
 
 /* ============ PROVADIA — THE GATE · Captain's prototype ============
    Locked facts: gold #C9A227/#FFEFC1/#6B4A12/#3D2A08 · field #141210 ·
@@ -231,8 +228,15 @@ for (let i = 0; i < N; i++) {
 }
 const dustGeo = new THREE.BufferGeometry();
 dustGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+const spriteC = document.createElement('canvas'); spriteC.width = spriteC.height = 64;
+const sg = spriteC.getContext('2d');
+const grad = sg.createRadialGradient(32, 32, 0, 32, 32, 32);
+grad.addColorStop(0, 'rgba(255,255,255,1)'); grad.addColorStop(0.4, 'rgba(255,255,255,0.5)');
+grad.addColorStop(1, 'rgba(255,255,255,0)');
+sg.fillStyle = grad; sg.fillRect(0, 0, 64, 64);
 const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({
-  color:0xF4EFE6, size:0.055, transparent:true, opacity:0.65, depthWrite:false }));
+  color:0xF4EFE6, size:0.09, map:new THREE.CanvasTexture(spriteC),
+  transparent:true, opacity:0.65, depthWrite:false }));
 scene.add(dust);
 
 /* ================= CAMERA FLIGHT ================= */
