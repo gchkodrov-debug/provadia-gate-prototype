@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>PROVADIA — The Gate (Captain's Prototype)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#141210; font-family:'Inter',sans-serif; }
+  #scene { position:fixed; inset:0; display:block; cursor:pointer; }
+  .vignette { position:fixed; inset:0; pointer-events:none; z-index:3;
+    background:radial-gradient(ellipse at 50% 42%, transparent 46%, rgba(0,0,0,.55) 100%); }
+  .ui { position:fixed; z-index:5; color:#F4EFE6; pointer-events:none; }
+  .brand { top:26px; left:0; right:0; text-align:center; opacity:0; transition:opacity 1.6s ease .2s; }
+  .brand.on { opacity:1; }
+  .brand h1 { font-family:'Cinzel',serif; font-weight:700; font-size:clamp(26px,4.6vw,46px);
+    letter-spacing:.34em; text-indent:.34em; color:#FFEFC1;
+    text-shadow:0 0 26px rgba(201,162,39,.45), 0 2px 10px rgba(0,0,0,.8); }
+  .brand p { margin-top:7px; font-size:clamp(10px,1.4vw,13px); letter-spacing:.42em; text-indent:.42em;
+    text-transform:uppercase; color:rgba(244,239,230,.72); }
+  .wall { left:26px; bottom:24px; opacity:0; transition:opacity 1.6s ease .5s; }
+  .wall.on { opacity:1; }
+  .wall .t { font-family:'Cinzel',serif; font-size:clamp(12px,1.6vw,16px); letter-spacing:.26em; color:#FFEFC1; }
+  .wall .n { margin-top:4px; font-size:clamp(11px,1.4vw,14px); letter-spacing:.18em; color:rgba(244,239,230,.75); }
+  .wall .n b { color:#C9A227; font-weight:600; }
+  .hint { right:26px; bottom:24px; text-align:right; opacity:0; transition:opacity 1.6s ease .8s; }
+  .hint.on { opacity:1; }
+  .hint span { font-size:clamp(10px,1.3vw,12.5px); letter-spacing:.3em; text-transform:uppercase; color:rgba(244,239,230,.6); }
+  #flipBtn { position:fixed; z-index:6; left:50%; bottom:26px; transform:translateX(-50%);
+    pointer-events:auto; cursor:pointer; background:rgba(20,18,16,.55); color:#FFEFC1;
+    border:1px solid rgba(201,162,39,.65); border-radius:999px; padding:11px 26px;
+    font-family:'Cinzel',serif; font-size:13px; letter-spacing:.3em; text-indent:.3em;
+    backdrop-filter:blur(4px); opacity:0; transition:opacity 1.2s ease 1s, background .25s, border-color .25s; }
+  #flipBtn.on { opacity:1; }
+  #flipBtn:hover { background:rgba(201,162,39,.22); border-color:#C9A227; }
+  .arrive { position:fixed; inset:0; z-index:4; pointer-events:none; background:#000;
+    animation:arrive 2.6s ease-out forwards; }
+  @keyframes arrive { from { opacity:1; } to { opacity:0; } }
+  @media (max-width:640px){ .wall{left:16px;bottom:78px} .hint{display:none} #flipBtn{bottom:22px} }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div class="vignette"></div>
+<div class="arrive"></div>
+
+<div class="ui brand" id="brand">
+  <h1>PROVADIA</h1>
+  <p>The Gate &middot; Europe's First Town of Record</p>
+</div>
+<div class="ui wall" id="wallBox">
+  <div class="t">THE GOLDEN WALL</div>
+  <div class="n"><b>0 / 47</b> bricks laid &middot; one is waiting</div>
+</div>
+<div class="ui hint" id="hint"><span>Tap the coin</span></div>
+<button id="flipBtn">FLIP THE COIN</button>
+
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+/* ============ PROVADIA — THE GATE · Captain's prototype ============
+   Locked facts: gold #C9A227/#FFEFC1/#6B4A12/#3D2A08 · field #141210 ·
+   salt white #F4EFE6 · ONE light, 45°, upper left · coin: 5 brick
+   courses, exactly 7 merlons, ring of exactly 47 beads, no text on
+   the metal · Wall honestly 0/47.                                     */
+
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x141210);
+scene.fog = new THREE.FogExp2(0x141210, 0.028);
+
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 200);
+
+/* ---- THE ONE LIGHT — warm, 45°, upper left ---- */
+const key = new THREE.DirectionalLight(0xFFEFC1, 2.6);
+key.position.set(-9, 11, 7);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.left = -16; key.shadow.camera.right = 16;
+key.shadow.camera.top = 16; key.shadow.camera.bottom = -16;
+scene.add(key);
+scene.add(new THREE.HemisphereLight(0x39301f, 0x050403, 0.5)); // a whisper, so shadow sides are not void
+const ember = new THREE.PointLight(0xC9A227, 12, 20, 1.8);      // the coin's own glow on the stone
+ember.position.set(0, 1.2, 3.2);
+scene.add(ember);
+
+/* ---- materials ---- */
+const gold      = new THREE.MeshStandardMaterial({ color:0xC9A227, metalness:0.92, roughness:0.34 });
+const goldDark  = new THREE.MeshStandardMaterial({ color:0x8a6a1c, metalness:0.9,  roughness:0.46 });
+const goldLight = new THREE.MeshStandardMaterial({ color:0xFFEFC1, metalness:0.85, roughness:0.28,
+                                                   emissive:0xC9A227, emissiveIntensity:0.12 });
+const stone     = new THREE.MeshStandardMaterial({ color:0x2a2119, metalness:0.05, roughness:0.97 });
+const stoneDark = new THREE.MeshStandardMaterial({ color:0x1c1611, metalness:0.05, roughness:1.0 });
+
+/* ---- ground ---- */
+const ground = new THREE.Mesh(new THREE.CircleGeometry(60, 48),
+  new THREE.MeshStandardMaterial({ color:0x100d0a, roughness:1 }));
+ground.rotation.x = -Math.PI/2; ground.position.y = -0.62; ground.receiveShadow = true;
+scene.add(ground);
+
+/* ================= THE GATE ================= */
+const gate = new THREE.Group();
+const pillarGeo = new THREE.BoxGeometry(1.5, 8.6, 1.5);
+[-4.1, 4.1].forEach(x => {
+  const p = new THREE.Mesh(pillarGeo, stone);
+  p.position.set(x, 3.68, 7); p.castShadow = true; p.receiveShadow = true; gate.add(p);
+  const cap = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.5, 1.9), stoneDark);
+  cap.position.set(x, 8.2, 7); cap.castShadow = true; gate.add(cap);
+  const trim = new THREE.Mesh(new THREE.BoxGeometry(1.56, 0.14, 1.56), goldDark);
+  trim.position.set(x, 6.4, 7); gate.add(trim);
+});
+const lintel = new THREE.Mesh(new THREE.BoxGeometry(10.4, 1.3, 1.7), stone);
+lintel.position.set(0, 7.55, 7); lintel.castShadow = true; lintel.receiveShadow = true; gate.add(lintel);
+const lintelTrim = new THREE.Mesh(new THREE.BoxGeometry(10.44, 0.13, 1.74), goldDark);
+lintelTrim.position.set(0, 6.86, 7); gate.add(lintelTrim);
+scene.add(gate);
+
+/* ================= THE COIN ================= */
+const coin = new THREE.Group();
+coin.position.set(0, 2.35, 0);
+const body = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 0.36, 96), gold);
+body.rotation.x = Math.PI/2; body.castShadow = true; body.receiveShadow = true;
+coin.add(body);
+const rimF = new THREE.Mesh(new THREE.TorusGeometry(1.97, 0.055, 12, 96), goldDark);
+rimF.position.z = 0.18; coin.add(rimF);
+const rimB = rimF.clone(); rimB.position.z = -0.18; coin.add(rimB);
+
+/* FRONT — 5 brick courses + exactly 7 merlons */
+const front = new THREE.Group(); front.position.z = 0.19;
+const brickMat = new THREE.MeshStandardMaterial({ color:0xb28c22, metalness:0.9, roughness:0.42 });
+for (let row = 0; row < 5; row++) {
+  const y = -0.92 + row * 0.335;
+  const n = 6, off = (row % 2) ? 0.27 : 0;
+  for (let i = 0; i < n; i++) {
+    const x = -1.35 + i * 0.54 + off;
+    if (Math.hypot(x, y) > 1.52) continue;
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.29, 0.1), brickMat);
+    b.position.set(x, y, 0); b.castShadow = true; front.add(b);
+  }
+}
+for (let i = 0; i < 7; i++) {                       // exactly 7 merlons
+  const x = -1.08 + i * 0.36;
+  const m = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 0.12), gold);
+  m.position.set(x, 0.98 - Math.abs(x) * 0.13, 0); m.castShadow = true; front.add(m);
+}
+for (let i = 0; i < 47; i++) {                      // ring of exactly 47 beads
+  const a = (i / 47) * Math.PI * 2;
+  const bead = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 10), goldLight);
+  bead.position.set(Math.cos(a) * 1.76, Math.sin(a) * 1.76, 0.02); front.add(bead);
+}
+coin.add(front);
+
+/* BACK — the sun over its rings (ray count still the founder's open call: plain sun) */
+const back = new THREE.Group(); back.position.z = -0.19; back.rotation.y = Math.PI;
+const sun = new THREE.Mesh(new THREE.CircleGeometry(0.52, 48),
+  new THREE.MeshStandardMaterial({ color:0xd9ae3a, metalness:0.85, roughness:0.3,
+                                   emissive:0xC9A227, emissiveIntensity:0.4 }));
+back.add(sun);
+[0.82, 1.12, 1.42].forEach(r => {
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.032, 10, 80), goldDark);
+  back.add(ring);
+});
+for (let i = 0; i < 47; i++) {
+  const a = (i / 47) * Math.PI * 2;
+  const bead = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 10), goldLight);
+  bead.position.set(Math.cos(a) * 1.76, Math.sin(a) * 1.76, -0.02); back.add(bead);
+}
+coin.add(back);
+scene.add(coin);
+
+/* ================= THE GOLDEN WALL — 0 / 47 ================= */
+function wallTexture() {
+  const c = document.createElement('canvas'); c.width = 2048; c.height = 768;
+  const g = c.getContext('2d');
+  g.fillStyle = '#171310'; g.fillRect(0, 0, 2048, 768);
+  for (let i = 0; i < 2600; i++) {  // stone grain
+    g.fillStyle = `rgba(${40+Math.random()*30|0},${32+Math.random()*22|0},${20+Math.random()*14|0},0.25)`;
+    g.fillRect(Math.random()*2048, Math.random()*768, 3, 3);
+  }
+  // exactly 47 outlined brick slots: rows 12 / 12 / 12 / 11
+  const rows = [12, 12, 12, 11], bw = 138, bh = 118, gap = 18;
+  let idx = 0; window.__brickPos = [];
+  rows.forEach((n, r) => {
+    const totalW = n * bw + (n - 1) * gap;
+    const x0 = (2048 - totalW) / 2, y0 = 92 + r * (bh + gap);
+    for (let i = 0; i < n; i++) {
+      const x = x0 + i * (bw + gap), y = y0;
+      g.strokeStyle = 'rgba(201,162,39,0.5)'; g.lineWidth = 3;
+      g.strokeRect(x, y, bw, bh);
+      g.fillStyle = 'rgba(201,162,39,0.05)'; g.fillRect(x, y, bw, bh);
+      if (idx === 0) window.__brickPos.push({ x: x + bw/2, y: y + bh/2 });
+      idx++;
+    }
+  });
+  const t = new THREE.CanvasTexture(c); t.anisotropy = 8; return t;
+}
+const wall = new THREE.Mesh(new THREE.PlaneGeometry(27, 10.1),
+  new THREE.MeshStandardMaterial({ map: wallTexture(), roughness: 0.95, metalness: 0.05 }));
+wall.position.set(0, 4.4, -8.5); wall.receiveShadow = true;
+scene.add(wall);
+/* the one waiting brick — a breathing gold outline at slot #1 */
+const bp = window.__brickPos[0];
+const waitBrick = new THREE.Mesh(new THREE.PlaneGeometry(138/2048*27, 118/768*10.1),
+  new THREE.MeshBasicMaterial({ color:0xFFEFC1, transparent:true, opacity:0.14, side:THREE.DoubleSide }));
+waitBrick.position.set((bp.x/2048 - 0.5) * 27, (0.5 - bp.y/768) * 10.1 + 4.4, -8.44);
+scene.add(waitBrick);
+const waitFrame = new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.PlaneGeometry(138/2048*27, 118/768*10.1)),
+  new THREE.LineBasicMaterial({ color:0xFFEFC1, transparent:true, opacity:0.8 }));
+waitFrame.position.copy(waitBrick.position);
+scene.add(waitFrame);
+
+/* ---- salt dust ---- */
+const N = 380, pos = new Float32Array(N * 3), drift = new Float32Array(N);
+for (let i = 0; i < N; i++) {
+  pos[i*3] = (Math.random()-0.5) * 30; pos[i*3+1] = Math.random() * 9 - 0.5; pos[i*3+2] = 14 - Math.random() * 30;
+  drift[i] = 0.1 + Math.random() * 0.3;
+}
+const dustGeo = new THREE.BufferGeometry();
+dustGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({
+  color:0xF4EFE6, size:0.055, transparent:true, opacity:0.65, depthWrite:false }));
+scene.add(dust);
+
+/* ================= CAMERA FLIGHT ================= */
+const path = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(0, 2.6, 31),
+  new THREE.Vector3(0.4, 2.5, 20),
+  new THREE.Vector3(-0.3, 2.45, 12.5),
+  new THREE.Vector3(0, 2.4, 8.6),     // through the gate (gate at z=7)
+  new THREE.Vector3(0, 2.35, 6.4)     // settle before the coin
+]);
+const FLIGHT = 10.5;
+const shot = new URLSearchParams(location.search).get('shot');
+const easeInOut = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
+const smoother  = t => t*t*t*(t*(t*6 - 15) + 10);
+
+let flip = null;
+function doFlip() {
+  if (flip) return;
+  flip = { from: coin.rotation.y, to: coin.rotation.y + Math.PI, t: 0 };
+}
+document.getElementById('flipBtn').addEventListener('click', e => { e.stopPropagation(); doFlip(); });
+canvas.addEventListener('pointerdown', doFlip);
+
+const clock = new THREE.Clock();
+let uiShown = false;
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+
+  /* flight */
+  let p;
+  if (shot !== null) p = parseFloat(shot);
+  else p = Math.min(t / FLIGHT, 1);
+  const e = smoother(p);
+  const cp = path.getPoint(e);
+  if (shot === null && p >= 1) {  // arrived: a living handheld sway
+    cp.x += Math.sin(t * 0.4) * 0.14;
+    cp.y += Math.sin(t * 0.55) * 0.07;
+  }
+  camera.position.copy(cp);
+  camera.lookAt(0, 2.3, 0);
+
+  if (p > 0.86 && !uiShown) {
+    uiShown = true;
+    ['brand','wallBox','hint','flipBtn'].forEach(id => document.getElementById(id).classList.add('on'));
+  }
+
+  /* coin: idle sway or the majestic flip */
+  if (flip) {
+    flip.t += dt / 1.5;
+    const k = easeInOut(Math.min(flip.t, 1));
+    coin.rotation.y = flip.from + (flip.to - flip.from) * k;
+    if (flip.t >= 1) flip = null;
+  } else {
+    coin.rotation.y += Math.sin(t * 0.35) * 0.0009;
+    coin.position.y = 2.35 + Math.sin(t * 0.8) * 0.05;
+  }
+
+  /* the waiting brick breathes */
+  const pulse = 0.5 + 0.5 * Math.sin(t * 1.6);
+  waitBrick.material.opacity = 0.07 + pulse * 0.13;
+  waitFrame.material.opacity = 0.4 + pulse * 0.55;
+  ember.intensity = 10 + pulse * 5;
+
+  /* salt dust rises */
+  const arr = dustGeo.attributes.position.array;
+  for (let i = 0; i < N; i++) {
+    arr[i*3+1] += drift[i] * dt;
+    arr[i*3]   += Math.sin(t * 0.5 + i) * 0.0012;
+    if (arr[i*3+1] > 9) arr[i*3+1] = -0.5;
+  }
+  dustGeo.attributes.position.needsUpdate = true;
+
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>
